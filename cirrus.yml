@@ -1,0 +1,60 @@
+container:
+  image: ubuntu:22.04
+  cpu: 8
+  memory: 16G
+
+env:
+  DEVICE: "Infinix-X6512"
+  KERNEL_VERSION: "4.19.127"
+
+kernel_build_task:
+  name: "Build Kernel X6512 with KSU Next"
+  timeout_in: 120m
+  
+  setup_environment_script:
+    - apt-get update && apt-get upgrade -y
+    - apt-get install -y bc bison build-essential ccache curl flex g++-multilib 
+    - apt-get install -y gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev 
+    - apt-get install -y lib32readline-dev lib32z1-dev liblz4-tool libncurses5 
+    - apt-get install -y libncurses5-dev libsdl1.2-dev libssl-dev libxml2 
+    - apt-get install -y libxml2-utils lzop pngcrush rsync schedtool squashfs-tools 
+    - apt-get install -y xsltproc zip zlib1g-dev python3 python3-pip wget
+    - apt-get install -y gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf
+    - apt-get install -y cpio kmod
+    # Install mkbootimg tools
+    - pip3 install pycryptodome
+    
+  download_toolchain_script:
+    - mkdir -p /opt/toolchain
+    - cd /opt/toolchain
+    # Download ARM32 toolchain
+    - wget https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/heads/master.tar.gz -O arm32.tar.gz
+    - mkdir arm32 && tar -xf arm32.tar.gz -C arm32
+    # Download Clang
+    - git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+    
+  clone_sources_script:
+    - cd $HOME
+    # Clone device tree untuk mendapatkan prebuilt dan config
+    - git clone --depth=1 https://github.com/manusia251/android_device_infinix_Infinix-X6512 device_tree
+    # Clone MediaTek kernel source
+    - git clone --depth=1 https://github.com/MediatekAndroidDevelopers/android_kernel_mediatek_mt6761 kernel
+    # Clone mkbootimg tools
+    - git clone --depth=1 https://github.com/osm0sis/mkbootimg mkbootimg_tools
+    
+  build_kernel_script:
+    - cd $HOME
+    - chmod +x build.sh
+    - ./build.sh
+    
+  artifacts_script:
+    - echo "Preparing artifacts..."
+    - ls -lah $HOME/out/
+    
+  boot_img_artifacts:
+    path: "out/boot_ksu_*.img"
+    type: application/octet-stream
+    
+  kernel_log_artifacts:
+    path: "out/*.log"
+    type: text/plain
