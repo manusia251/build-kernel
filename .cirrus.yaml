@@ -1,0 +1,85 @@
+container:
+  image: ubuntu:22.04
+  cpu: 8
+  memory: 16G
+
+env:
+  # Device Info
+  DEVICE: "Infinix-X6512"
+  KERNEL_VERSION: "4.19.127"
+  
+  # Language & Locale
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  LANGUAGE: "en_US:en"
+  TZ: "Asia/Jakarta"
+
+kernel_build_task:
+  name: "Build Kernel X6512 with KSU Next"
+  timeout_in: 120m
+  
+  setup_environment_script:
+    # Set timezone and locale
+    - ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt-get update && apt-get upgrade -y
+    - apt-get install -y locales tzdata
+    - locale-gen en_US.UTF-8
+    - update-locale LANG=en_US.UTF-8
+    # Install build dependencies
+    - apt-get install -y bc bison build-essential ccache curl flex g++-multilib 
+    - apt-get install -y gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev 
+    - apt-get install -y lib32readline-dev lib32z1-dev liblz4-tool libncurses5 
+    - apt-get install -y libncurses5-dev libsdl1.2-dev libssl-dev libxml2 
+    - apt-get install -y libxml2-utils lzop pngcrush rsync schedtool squashfs-tools 
+    - apt-get install -y xsltproc zip zlib1g-dev python3 python3-pip wget
+    - apt-get install -y gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf
+    - apt-get install -y cpio kmod nano vim
+    # Install mkbootimg dependencies
+    - pip3 install pycryptodome
+    
+  download_toolchain_script:
+    - mkdir -p /opt/toolchain
+    - cd /opt/toolchain
+    # Download ARM32 GCC toolchain
+    - echo "Downloading ARM32 Toolchain..."
+    - git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm32
+    # Download Clang
+    - echo "Downloading Proton Clang..."
+    - git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+    
+  clone_sources_script:
+    - cd $HOME
+    # Clone device tree
+    - echo "Cloning device tree..."
+    - git clone --depth=1 https://github.com/manusia251/android_device_infinix_Infinix-X6512 device_tree
+    # Clone kernel source - Using alternative MediaTek kernel sources
+    - echo "Cloning kernel source..."
+    - git clone --depth=1 --branch android-4.19 https://github.com/MiCode/Xiaomi_Kernel_OpenSource kernel || git clone --depth=1 https://github.com/nokia-mt6761/android_kernel_nokia_mt6761 kernel || git clone --depth=1 https://github.com/Legacy-Project/kernel_nokia_mt6761 kernel
+    # Clone mkbootimg tools
+    - echo "Cloning mkbootimg tools..."
+    - git clone --depth=1 https://github.com/osm0sis/mkbootimg mkbootimg_tools
+    
+  build_kernel_script:
+    - cd $HOME
+    - chmod +x build.sh
+    - ./build.sh
+    
+  artifacts_script:
+    - echo "=============================="
+    - echo "Build artifacts:"
+    - echo "=============================="
+    - ls -lah $HOME/out/
+    - echo "=============================="
+    
+  boot_img_artifacts:
+    path: "out/boot_ksu_*.img"
+    type: application/octet-stream
+    
+  kernel_log_artifacts:
+    path: "out/*.log"
+    type: text/plain
+    
+  build_info_artifacts:
+    path: "out/*.txt"
+    type: text/plain
